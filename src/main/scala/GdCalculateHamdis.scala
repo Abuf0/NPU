@@ -33,12 +33,12 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
   /*** release ***/
   val temp_rdata = Reg(UInt(cfg.DW bits)) init(0)
   val samp_rdata = Reg(UInt(cfg.DW bits)) init(0)
-  //temp_rdata := io.temp_mem_if.mem_rdata
-  //samp_rdata := io.samp_mem_if.mem_rdata
+  temp_rdata := io.temp_mem_if.mem_rdata
+  samp_rdata := io.samp_mem_if.mem_rdata
 
   /*** debug ***/
   //if(cfg.debug_en){
-
+  /*
     val temp_ram = Mem(UInt(cfg.DW bits),131072)
     val samp_ram = Mem(UInt(cfg.DW bits),131072)
     val res_ram = Mem(UInt(cfg.DW bits),131072)
@@ -47,8 +47,8 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     samp_ram.simPublic()
     res_ram.simPublic()
 
-    val temp_init: Seq[UInt] = HexFileLoader.loadHex32UInt("D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/temp_data.txt")
-    val samp_init: Seq[UInt] = HexFileLoader.loadHex32UInt("D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/samp_data.txt")
+    val temp_init: Seq[UInt] = HexFileLoader.loadHex32UInt("./src/main/scala/temp_data.txt")
+    val samp_init: Seq[UInt] = HexFileLoader.loadHex32UInt("./src/main/scala/samp_data.txt")
 
     val zero = U(0, 32 bits)
     val temp_initData: Seq[UInt] =
@@ -71,7 +71,7 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
       mask = io.res_mem_if.mem_wmask.asBits
     )
 
-
+*/
 
 //  } else {
 //    temp_rdata := io.temp_mem_if.mem_rdata

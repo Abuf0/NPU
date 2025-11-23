@@ -38,8 +38,8 @@ object tcfg extends SpinalConfig(
 object top {
   def main(args: Array[String]) {
     val ccfg = HammConfig()
-    scfg.generateSystemVerilog(new GdCalculateHamdis(ccfg))
-    scfg.generateSystemVerilog(new HammDistance(ccfg))
+    //scfg.generateSystemVerilog(new GdCalculateHamdis(ccfg))
+    //scfg.generateSystemVerilog(new HammDistance(ccfg))
     tcfg.generateSystemVerilog(new GdCalculateHamdis_wrap(ccfg))
   }
 }
@@ -51,7 +51,7 @@ import spinal.core.sim._
 object hamdis_sim {
   def main(args: Array[String]) {
     val ccfg = HammConfig()
-    SimConfig.withWave.doSim(new GdCalculateHamdis(ccfg, 0)) { dut => // 实例化top level dut
+    SimConfig.withWave.doSim(new gdhamdis_dbg(ccfg, 0)) { dut => // 实例化top level dut
       dut.clockDomain.forkStimulus(period = 10) // just simulation
       // INIT
       def BITQ_MODE = 2
@@ -138,7 +138,7 @@ object hamdis_sim {
 
       /*** debug ***/
 
-        val dis_writer = new PrintWriter("D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/dist_res_ram_dump.txt")
+        val dis_writer = new PrintWriter("./src/main/scala/dist_res_ram_dump.txt")
         for (i <- 0 until INUM) {
           for (j <- 0 until NTH / 2) {
             // 读取一个 word（返回 BigInt）
@@ -166,8 +166,8 @@ object hamdis_sim {
         println()
 
 
-        val mindata_writer = new PrintWriter("D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/mindata_res_ram_dump.txt")
-        val mindpos_writer = new PrintWriter("D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/minpos_res_ram_dump.txt")
+        val mindata_writer = new PrintWriter("./src/main/scala/mindata_res_ram_dump.txt")
+        val mindpos_writer = new PrintWriter("./src/main/scala/minpos_res_ram_dump.txt")
 
         for (i <- 0 until INUM) {
           val addr = i + (MIN_BASE >> 2)
@@ -218,9 +218,9 @@ object hamdis_sim {
         }
 
         // 连续跑多个比对
-        runCase("DIST", "D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/dist_res_ram_dump.txt", "D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/dist_res_ref.txt")
-        runCase("MIN-DATA", "D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/mindata_res_ram_dump.txt", "D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/mindata_res_ref.txt")
-        runCase("MIN-POS", "D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/minpos_res_ram_dump.txt", "D:/Learn/IC/project/Spinalhdl/NPU/src/main/scala/minpos_res_ref.txt")
+        runCase("DIST", "./src/main/scala/dist_res_ram_dump.txt", "./src/main/scala/dist_res_ref.txt")
+        runCase("MIN-DATA", "./src/main/scala/mindata_res_ram_dump.txt", "./src/main/scala/mindata_res_ref.txt")
+        runCase("MIN-POS", "./src/main/scala/minpos_res_ram_dump.txt", "./src/main/scala/minpos_res_ref.txt")
 
         // 全部用例跑完之后，再统一判断
         if (allErrors.isEmpty) {
