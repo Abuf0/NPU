@@ -55,15 +55,15 @@ object hamdis_sim {
       dut.clockDomain.forkStimulus(period = 10) // just simulation
       // INIT
       def BITQ_MODE = 2
-      def BITLEN = 128
-      def INUM = 10
-      def JNUM = 10
-      def NTH = 6
+      def BITLEN = 192
+      def INUM = 37
+      def JNUM = 128
+      def NTH = 20
 
       def TEMP_BASE = 0
       def SAMP_BASE = 0
       def DST_BASE = 0
-      def MIN_BASE = 200  // > INUM * NTH/2 * 4
+      def MIN_BASE = 2000  // > INUM * NTH/2 * 4
 
       def IS = 0
       def IE = IS+INUM
@@ -72,10 +72,10 @@ object hamdis_sim {
       def DIM = 0
 
 
-      def PARM0 = 56//96
-      def PARM1 = 114//384
-      def PARM2 = 280//480
-      def PARM3 = 576//576
+      def PARM0 = 58//96
+      def PARM1 = 164//384
+      def PARM2 = 230//480
+      def PARM3 = 376//576
 
       dut.io.start #= false
       dut.io.father_mode #= false
@@ -134,7 +134,7 @@ object hamdis_sim {
       dut.clockDomain.waitRisingEdge()
       dut.clockDomain.waitRisingEdge()
 
-      dut.clockDomain.waitSampling(2000)
+      dut.clockDomain.waitSampling(100000)
 
       /*** debug ***/
 

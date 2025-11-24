@@ -62,8 +62,10 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
   //val j_cnt_oh = Reg(UInt(cfg.U8W bits)) init (0)
   val i_cnt_temp = Reg(UInt(cfg.U8W bits)) init (0)  // todo
   val j_cnt_temp = Reg(UInt(cfg.U8W bits)) init (0)
-  val j_temp_done = (j_cnt_temp === j_num - 1) && pos_loop_done
-  val i_temp_done = (i_cnt_temp === i_num - 1) && j_temp_done
+  val i_cnt_hamm = HAMM.io.i_cnt_out
+  val j_cnt_hamm = HAMM.io.j_cnt_out
+  val j_hamm_done = (j_cnt_hamm === j_num - 1)
+  val i_hamm_done = (i_cnt_hamm === i_num - 1) && j_hamm_done
   val pos_loop_cnt_m = Reg(UInt(2 bits)) init(0)
   val pos_loop_cnt_m1 = Reg(UInt(2 bits)) init(0)
 
@@ -95,7 +97,8 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
   val wait_done = (state === WAIT) && (pos_cnt === 1)// todo
   val hamm_pos_done = (pos_cnt === (Max(io.dim,U(1)))) && (state === HAMMDIS)
   val hamm_done = (state === HAMMDIS) && HAMM.io.score.valid
-  val is_j_flush_last_loop = (HAMM.io.j_cnt_out === j_num-1)
+  val is_j_flush_last_loop = (j_cnt_hamm === j_num-1)
+  val is_flush_last_loop = is_j_flush_last_loop && (i_cnt_hamm === i_num-1)
   val is_j_temp_last_loop = (j_cnt_temp === j_num-1)
   val is_j_last_temp_vld = is_j_temp_last_loop && tempdata_vld
   val is_j_last_temp_vld_d1 = RegNext(is_j_last_temp_vld) init(False)
@@ -105,13 +108,16 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
   val is_last_temp_vld_d1 = RegNext(is_last_temp_vld) init(False)
   val is_last_temp_vld_d2 = RegNext(is_last_temp_vld_d1) init(False)
   val is_last_temp_vld_d3 = RegNext(is_last_temp_vld_d2) init(False)
-  val wait_no_vld = is_j_flush_last_loop && flush //Reg(Bool()) init(False)
+  val wait_no_vld = RegNext(is_j_flush_last_loop && flush) init(False) //Reg(Bool()) init(False)
   val wait_no_vld_d1 = RegNext(wait_no_vld) init(False)
   val wait_no_vld_d2 = RegNext(wait_no_vld_d1) init(False)
+  val last_wait_no_vld = is_flush_last_loop && flush //Reg(Bool()) init(False)
+  val last_wait_no_vld_d1 = RegNext(last_wait_no_vld) init(False)
+  val last_wait_no_vld_d2 = RegNext(last_wait_no_vld_d1) init(False)
   val is_wb_last_loop = Reg(Bool()) init(False)
   val is_temp_last_loop = (j_cnt_temp === j_num - 1) && (i_cnt_temp === i_num - 1)
   val done_pre = Bool()
-  done_pre := False
+  done_pre := (is_last_temp_vld_d3 || last_wait_no_vld_d2)
 
 
   when(is_last_loop){
@@ -134,7 +140,7 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     when(is_j_flush_last_loop){
       j_cnt := 0
     } .otherwise{
-      j_cnt := j_cnt_temp + 1
+      j_cnt := j_cnt_hamm + 1
     }
   } .otherwise{//.elsewhen(state === POS1 || state === POS2 || state === POS3 || state === POS4) {
     when(j_done) {
@@ -147,10 +153,12 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
   when(done_pre){
     i_cnt := 0
   } .elsewhen(flush){
-    when(i_temp_done){
+    when(i_hamm_done){
       i_cnt := 0
     } .elsewhen(is_j_flush_last_loop){
-      i_cnt := i_cnt_temp + 1
+      i_cnt := i_cnt_hamm + 1
+    } .otherwise{
+      i_cnt := i_cnt_hamm
     }
   }.otherwise{//elsewhen(state === POS1 || state === POS2 || state === POS3 || state === POS4) {
     when(i_done) {
@@ -206,8 +214,8 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     j_cnt_m1 := j_cnt_m
     i_cnt_ih := i_cnt_m1
     j_cnt_ih := j_cnt_m1
-    i_cnt_temp := HAMM.io.i_cnt_out // maybe可以直接用oh作为temp
-    j_cnt_temp := HAMM.io.j_cnt_out
+    i_cnt_temp := i_cnt_hamm // maybe可以直接用oh作为temp
+    j_cnt_temp := j_cnt_hamm
   }
 
 
@@ -311,7 +319,7 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
   val flush_req_1 = ((hammdist1 << 1) > io.param(1)) && ((hammdist2 << 1) > io.param(1))
   val flush_req_2 = (((hammdist1_lat << 1) + HAMM.io.score.payload) > io.param(2)) && (((hammdist2_lat << 1) + HAMM.io.score.payload) > io.param(2))
 
-    when(HAMM.io.pos_loop_cnt_out === 0 && HAMM.io.score.valid && flush_req_0){
+  when(HAMM.io.pos_loop_cnt_out === 0 && HAMM.io.score.valid && flush_req_0){
     flush := True
     //restore ?
   } .elsewhen(HAMM.io.pos_loop_cnt_out === 1 && HAMM.io.score.valid && flush_req_1 && io.bitq_mode === 2){
@@ -369,10 +377,21 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     io.samp_mem_if.mem_rd := False
   }
 
-  val temp_mem_rvld_d1 = RegNext(io.temp_mem_if.mem_rd && !flush) init(False)
-  val samp_mem_rvld_d1 = RegNext(io.samp_mem_if.mem_rd && !flush) init(False)
-  val pa_vld = RegNext(temp_mem_rvld_d1 && !flush) init(False)
-  val pb_vld = RegNext(samp_mem_rvld_d1 && !flush) init(False)
+  val temp_mem_rvld_d1 = Reg(Bool()) init(False)
+  val samp_mem_rvld_d1 = Reg(Bool()) init(False)
+  val pa_vld = Reg(Bool()) init(False)
+  val pb_vld = Reg(Bool()) init(False)
+  when(state =/= IDLE){
+    temp_mem_rvld_d1 := io.temp_mem_if.mem_rd && !flush
+    samp_mem_rvld_d1 := io.samp_mem_if.mem_rd && !flush
+    pa_vld := temp_mem_rvld_d1 && !flush
+    pb_vld := samp_mem_rvld_d1 && !flush
+  } .otherwise{
+    temp_mem_rvld_d1 := False
+    samp_mem_rvld_d1 := False
+    pa_vld := False
+    pb_vld := False
+  }
   HAMM.io.pa.valid := pa_vld
   HAMM.io.pb.valid := pb_vld
   HAMM.io.pa.payload := temp_rdata.asSInt
@@ -394,6 +413,7 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
   HAMM.io.j_cnt_in := j_cnt_ih
 
 
+  val is_wait_last_loop = Reg(Bool()) init(False)
 
   switch(state) {
     is(IDLE) {
@@ -407,9 +427,16 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     }
 
     is(POS1) {
-      when(flush) {
+      when(done_pre){
+        state := IDLE
+      } .elsewhen(flush) {
         pos_loop_done := True
-        when(is_j_flush_last_loop) { state := WAIT }
+        when(is_j_flush_last_loop) {
+          state := WAIT
+          when(is_flush_last_loop){
+            is_wait_last_loop := True
+          }
+        }
           .otherwise {
             state := POS1
           }
@@ -419,9 +446,16 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     }
 
     is(POS2) {
-      when(flush) {
+      when(done_pre){
+        state := IDLE
+      } .elsewhen(flush) {
         pos_loop_done := True
-        when(is_j_flush_last_loop) { state := WAIT }
+        when(is_j_flush_last_loop) {
+          state := WAIT
+          when(is_flush_last_loop){
+            is_wait_last_loop := True
+          }
+        }
           .otherwise {
             state := POS1
           }
@@ -439,10 +473,15 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     }
 
     is(POS3) {
-      when(flush) {
+      when(done_pre){
+        state := IDLE
+      } .elsewhen(flush) {
         pos_loop_done := True
         when(is_j_flush_last_loop) {
           state := WAIT
+          when(is_flush_last_loop){
+            is_wait_last_loop := True
+          }
         }
           .otherwise {
             state := POS1
@@ -453,9 +492,16 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     }
 
     is(POS4) {
-      when(flush) {
+      when(done_pre){
+        state := IDLE
+      } .elsewhen(flush) {
         pos_loop_done := True
-        when(is_j_flush_last_loop) { state := WAIT }
+        when(is_j_flush_last_loop) {
+          state := WAIT
+          when(is_flush_last_loop){
+            is_wait_last_loop := True
+          }
+        }
           .otherwise {
             state := POS1
           }
@@ -477,6 +523,19 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
     }
 
     is(WAIT) {
+      when(is_wait_last_loop){
+        when(is_last_temp_vld_d3 || last_wait_no_vld_d2){
+          state := IDLE
+          is_wait_last_loop := False
+        }
+      } .elsewhen(flush){
+        when(is_flush_last_loop) {
+          is_wait_last_loop := True
+        }
+      } .elsewhen(wait_done){
+          state := POS1
+        }
+
 //      when(flush){
 //        when(is_j_flush_last_loop){ // flush发生在i的尾巴上，等待
 //          when(is_j_last_temp_vld_d3 || wait_no_vld_d2){
@@ -488,27 +547,17 @@ case class GdCalculateHamdis(cfg:HammConfig, lantency: Int = 0) extends Componen
 //          state := POS1
 //        }
 //      } .else
-      when(is_wb_last_loop){ // 最后一次
-        when(is_last_temp_vld_d3 || wait_no_vld_d2){
-          //pos_loop_done := True
-          state := IDLE
-          done_pre := True
-        }
-      } .elsewhen(wait_done || flush){ // i的尾巴不做等待，直接循环下一个
-        state := POS1
-      }
-
-
-//      when( is_wb_last_loop){
+//      when(is_wb_last_loop){ // 最后一次
 //        when(is_last_temp_vld_d3 || wait_no_vld_d2){
 //          //pos_loop_done := True
 //          state := IDLE
 //          done_pre := True
 //        }
-//      } .elsewhen(wait_done){
-//        //pos_loop_done := True
+//      } .elsewhen(wait_done || flush){ // i的尾巴不做等待，直接循环下一个
 //        state := POS1
 //      }
+
+
     }
 
   }
