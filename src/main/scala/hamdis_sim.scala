@@ -56,14 +56,14 @@ object hamdis_sim {
       // INIT
       def BITQ_MODE = 2
       def BITLEN = 128
-      def INUM = 5
-      def JNUM = 5
-      def NTH = 4
+      def INUM = 10
+      def JNUM = 10
+      def NTH = 6
 
       def TEMP_BASE = 0
       def SAMP_BASE = 0
       def DST_BASE = 0
-      def MIN_BASE = 100
+      def MIN_BASE = 200  // > INUM * NTH/2 * 4
 
       def IS = 0
       def IE = IS+INUM
@@ -73,7 +73,7 @@ object hamdis_sim {
 
 
       def PARM0 = 56//96
-      def PARM1 = 164//384
+      def PARM1 = 114//384
       def PARM2 = 280//480
       def PARM3 = 576//576
 
@@ -134,7 +134,7 @@ object hamdis_sim {
       dut.clockDomain.waitRisingEdge()
       dut.clockDomain.waitRisingEdge()
 
-      dut.clockDomain.waitSampling(1000)
+      dut.clockDomain.waitSampling(2000)
 
       /*** debug ***/
 

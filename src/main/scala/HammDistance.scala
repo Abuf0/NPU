@@ -32,6 +32,7 @@ case class HammDistance(cfg:HammConfig, lantency: Int = 0) extends Component {
     acc
   }
 
+
   io.score.setAsReg() init(io.score.getZero)
   val step = UInt(2 bits)
   when(io.dim <=1 ){
@@ -60,7 +61,11 @@ case class HammDistance(cfg:HammConfig, lantency: Int = 0) extends Component {
     cnt := cnt + 1
   }
 
-  val pop_cnt = popCount(io.pa.payload.asBits ^ io.pb.payload.asBits)
+  //val pop_cnt = popCount(io.pa.payload.asBits ^ io.pb.payload.asBits)
+
+  val bitVec: Vec[UInt] = Vec((io.pa.payload.asBits ^ io.pb.payload.asBits).asBools.map(bool => U(bool).resize(log2Up(cfg.DW + 1) bits)))
+  val pop_cnt = bitVec.reduceBalancedTree(_+_)
+
   if(lantency == 1){
     pop_cnt.setAsReg() init(0)
   }
